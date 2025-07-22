@@ -129,7 +129,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       options: {
         data: {
           name: name,
-          phone: phone,
         },
       },
     });
@@ -138,19 +137,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error(error.message);
     }
 
-    // Se o registo foi bem-sucedido e temos um utilizador, criar/atualizar o perfil
-    if (data.user && phone) {
+    // Se o registo foi bem-sucedido e temos um utilizador, criar o perfil
+    if (data.user) {
       try {
-        await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
-          .upsert({
+          .insert({
             id: data.user.id,
             email: email,
             name: name,
-            phone: phone,
+            phone: phone || null,
           });
+        
+        if (profileError) {
+          console.error('Erro ao criar perfil:', profileError);
+          // Não lançar erro aqui para não bloquear o registo
+        }
       } catch (profileError) {
-        console.error('Erro ao atualizar perfil com telefone:', profileError);
+        console.error('Erro ao criar perfil:', profileError);
       }
     }
   };
@@ -169,11 +173,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Erro no signOut:', error);
+      }
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    } finally {
+      // Sempre limpar o estado do utilizador
+      setUser(null);
+      // Forçar reload da página para garantir limpeza completa
+      window.location.href = '/';
     }
-    setUser(null);
   };
 
   const resetPassword = async (email: string) => {

@@ -59,9 +59,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
 
     try {
       const fullPhone = phoneNumber ? `${countryCode}${phoneNumber}` : '';
-      await signUp(email, password, name, fullPhone);
+      await signUp(email, password, name, fullPhone || undefined);
     } catch (err) {
-      setError('Erro ao criar conta. Tente novamente.');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Erro ao criar conta. Tente novamente.');
+      }
     }
   };
 
