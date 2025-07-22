@@ -6,52 +6,80 @@ const AuthCallbackPage: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Processar callback do Google OAuth
-        const { data, error } = await supabase.auth.getSession();
+        console.log('Processando callback do Google...');
         
-        if (error) {
-          console.error('Erro no callback:', error);
+        // Processar callback do Google OAuth
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Erro ao obter sessão:', sessionError);
           // Redirecionar para login com erro
           window.location.href = '/?error=auth_failed';
           return;
         }
 
-        if (data.session?.user) {
+        console.log('Sessão obtida:', !!sessionData.session);
+        
+        if (sessionData.session?.user) {
+          const user = sessionData.session.user;
+          console.log('Utilizador encontrado:', user.email);
+          
           // Verificar se o perfil já existe
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile, error: profileCheckError } = await supabase
             .from('profiles')
             .select('id')
-            .eq('id', data.session.user.id)
-            .single();
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+            console.error('Erro ao verificar perfil:', profileCheckError);
+          }
+
+          console.log('Perfil existente:', !!existingProfile);
 
           // Se não existe perfil, criar um
           if (!existingProfile) {
+            console.log('Criando novo perfil...');
+            
+            const profileData = {
+              id: user.id,
+              email: user.email || '',
+              name: user.user_metadata?.full_name || 
+                    user.user_metadata?.name || 
+                    user.email?.split('@')[0] || 
+                    'Utilizador',
+              role: 'user' as const
+            };
+            
+            console.log('Dados do perfil:', profileData);
+            
             const { error: profileError } = await supabase
               .from('profiles')
-              .insert({
-                id: data.session.user.id,
-                email: data.session.user.email || '',
-                name: data.session.user.user_metadata?.full_name || 
-                      data.session.user.user_metadata?.name || 
-                      data.session.user.email?.split('@')[0] || 
-                      'Utilizador',
-                role: 'user'
-              });
+              .insert(profileData);
 
             if (profileError) {
               console.error('Erro ao criar perfil:', profileError);
+            } else {
+              console.log('Perfil criado com sucesso');
             }
           }
 
+          console.log('Redirecionando para dashboard...');
           // Redirecionar para dashboard
-          window.location.href = '/';
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
         } else {
+          console.log('Sem sessão, redirecionando para login...');
           // Sem sessão, redirecionar para login
           window.location.href = '/';
         }
       } catch (error) {
         console.error('Erro no callback:', error);
-        window.location.href = '/?error=auth_failed';
+        // Em caso de erro, tentar redirecionar mesmo assim
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
       }
     };
 
@@ -76,6 +104,9 @@ const AuthCallbackPage: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Processando Login</h2>
           <p className="text-gray-600">
             A finalizar o seu login com Google...
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Se demorar muito, será redirecionado automaticamente.
           </p>
         </div>
 
