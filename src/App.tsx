@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { useAuth, AuthProvider } from './contexts/AuthContext';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
@@ -6,10 +7,21 @@ import Navigation from './components/Layout/Navigation';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'admin'>('dashboard');
+  const [isResetPassword, setIsResetPassword] = useState(false);
+
+  useEffect(() => {
+    // Verificar se é uma página de reset de password
+    const urlParams = new URLSearchParams(window.location.search);
+    const type = urlParams.get('type');
+    if (type === 'recovery') {
+      setIsResetPassword(true);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -20,6 +32,11 @@ const AppContent: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Se for página de reset de password, mostrar essa página
+  if (isResetPassword) {
+    return <ResetPasswordPage />;
   }
 
   if (!user) {
