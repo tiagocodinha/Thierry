@@ -81,18 +81,20 @@ const ResetPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (password !== confirmPassword) {
       setError('As passwords não coincidem');
+      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError('A password deve ter pelo menos 6 caracteres');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
 
     try {
       console.log('Tentando atualizar password...');
@@ -104,19 +106,33 @@ const ResetPasswordPage: React.FC = () => {
       if (error) {
         console.error('Erro do Supabase:', error);
         setError(error.message);
+        setLoading(false);
       } else {
         console.log('Password atualizada com sucesso');
-        // Fazer logout para limpar a sessão de recovery
-        await supabase.auth.signOut();
         
-        // Redirecionar imediatamente para a página de login
-        window.location.href = '/';
+        // Mostrar sucesso e redirecionar após 2 segundos
+        setSuccess(true);
+        setLoading(false);
+        
+        setTimeout(async () => {
+          try {
+            // Fazer logout para limpar a sessão de recovery
+            await supabase.auth.signOut();
+          } catch (logoutError) {
+            console.error('Erro no logout:', logoutError);
+          }
+          
+          // Redirecionar para a página de login
+          window.location.href = '/';
+        }, 2000);
       }
     } catch (err) {
       console.error('Erro geral:', err);
       setError('Erro ao atualizar password');
-    } finally {
       setLoading(false);
+    } finally {
+      // Não definir loading como false aqui se foi bem-sucedido
+      // porque queremos mostrar a mensagem de sucesso
     }
   };
 
@@ -154,8 +170,11 @@ const ResetPasswordPage: React.FC = () => {
               A sua password foi atualizada com sucesso.
             </p>
             <p className="text-sm text-gray-500">
-              Será redirecionado para a página de login em alguns segundos...
+              Será redirecionado para a página de login em 2 segundos...
             </p>
+            <div className="mt-4">
+              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -319,9 +338,12 @@ const ResetPasswordPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-              {loading ? 'Atualizando...' : 'Atualizar Password'}
+              {loading && (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+              <span>{loading ? 'Atualizando...' : 'Atualizar Password'}</span>
             </button>
           </form>
         </div>
