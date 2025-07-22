@@ -6,7 +6,19 @@ const AuthCallbackPage: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('Processando callback do Google...');
+        console.log('Processando callback do Google...', window.location.href);
+        
+        // Verificar se há parâmetros de erro na URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+        
+        if (error) {
+          console.error('Erro no callback:', error, errorDescription);
+          alert(`Erro de autenticação: ${errorDescription || error}`);
+          window.location.href = '/?error=oauth_failed';
+          return;
+        }
         
         // Processar callback do Google OAuth
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
