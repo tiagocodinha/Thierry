@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Chapter } from '../types';
+import { Chapter, User } from '../types';
 import { 
   Plus, 
   Edit3, 
@@ -11,7 +11,9 @@ import {
   Video, 
   Users,
   BookOpen,
-  Eye
+  Eye,
+  Phone,
+  Mail
 } from 'lucide-react';
 
 const AdminPage: React.FC = () => {
@@ -20,6 +22,9 @@ const AdminPage: React.FC = () => {
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [showChapterForm, setShowChapterForm] = useState(false);
   const [deletingChapter, setDeletingChapter] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [userProgress, setUserProgress] = useState<Record<string, any[]>>({});
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     const loadChapters = async () => {
@@ -42,6 +47,58 @@ const AdminPage: React.FC = () => {
 
     loadChapters();
   }, []);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      // Carregar utilizadores
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (usersError) {
+        console.error('Erro ao carregar utilizadores:', usersError);
+        return;
+      }
+
+      setUsers(usersData || []);
+
+      // Carregar progresso de cada utilizador
+      const progressData: Record<string, any[]> = {};
+      
+      for (const user of usersData || []) {
+        const { data: userProgressData, error: progressError } = await supabase
+          .from('user_progress')
+          .select(`
+            *,
+            chapters (
+              id,
+              title,
+              order
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('watched', true);
+
+        if (!progressError) {
+          progressData[user.id] = userProgressData || [];
+        }
+      }
+
+      setUserProgress(progressData);
+    } catch (error) {
+      console.error('Erro ao carregar dados dos utilizadores:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      loadUsers();
+    }
+  }, [activeTab]);
 
   const handleFileUpload = async (file: File): Promise<string | null> => {
     try {
@@ -398,7 +455,7 @@ const AdminPage: React.FC = () => {
                 <Users className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <div className="text-2xl font-bold text-gray-900">24</div>
+                <div className="text-2xl font-bold text-gray-900">{users.length}</div>
                 <div className="text-gray-600">Utilizadores</div>
               </div>
             </div>
@@ -527,19 +584,116 @@ const AdminPage: React.FC = () => {
                     Gestão de Utilizadores
                   </h2>
                   <p className="text-gray-600">
-                    Visualizar e gerir utilizadores registados
+                    Visualizar utilizadores registados e o seu progresso
                   </p>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-8 text-center">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Gestão de Utilizadores
-                  </h3>
-                  <p className="text-gray-600">
-                    Esta funcionalidade será implementada na próxima versão.
-                  </p>
-                </div>
+                {loadingUsers ? (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center">
+                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Carregando utilizadores...</p>
+                  </div>
+                ) : users.length > 0 ? (
+                  <div className="space-y-4">
+                    {users.map((user) => {
+                      const progress = userProgress[user.id] || [];
+                      const watchedCount = progress.length;
+                      const progressPercentage = chapters.length > 0 ? (watchedCount / chapters.length) * 100 : 0;
+
+                      return (
+                        <div
+                          key={user.id}
+                          className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-semibold text-lg">
+                                    {user.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-900">
+                                    {user.name}
+                                  </h3>
+                                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                    <div className="flex items-center space-x-1">
+                                      <Mail className="w-4 h-4" />
+                                      <span>{user.email}</span>
+                                    </div>
+                                    {user.phone && (
+                                      <div className="flex items-center space-x-1">
+                                        <Phone className="w-4 h-4" />
+                                        <span>{user.phone}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Progresso */}
+                              <div className="mb-4">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                  <span className="font-medium text-gray-700">Progresso do Curso</span>
+                                  <span className="text-gray-600">{watchedCount}/{chapters.length} capítulos</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${progressPercentage}%` }}
+                                  />
+                                </div>
+                                <div className="text-right text-sm text-gray-600 mt-1">
+                                  {Math.round(progressPercentage)}% concluído
+                                </div>
+                              </div>
+
+                              {/* Capítulos assistidos */}
+                              {progress.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-700 mb-2">Capítulos Assistidos:</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {progress
+                                      .sort((a, b) => a.chapters.order - b.chapters.order)
+                                      .map((item) => (
+                                        <span
+                                          key={item.chapter_id}
+                                          className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                                        >
+                                          {item.chapters.order}. {item.chapters.title}
+                                        </span>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                user.role === 'admin' 
+                                  ? 'bg-purple-100 text-purple-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {user.role === 'admin' ? 'Admin' : 'Utilizador'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Nenhum utilizador encontrado
+                    </h3>
+                    <p className="text-gray-600">
+                      Ainda não há utilizadores registados na plataforma.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

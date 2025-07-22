@@ -18,6 +18,7 @@ export interface Database {
           id: string;
           email: string;
           name: string;
+          phone: string | null;
           role: 'user' | 'admin';
           created_at: string;
           updated_at: string;
@@ -26,6 +27,7 @@ export interface Database {
           id: string;
           email: string;
           name: string;
+          phone?: string | null;
           role?: 'user' | 'admin';
           created_at?: string;
           updated_at?: string;
@@ -34,6 +36,7 @@ export interface Database {
           id?: string;
           email?: string;
           name?: string;
+          phone?: string | null;
           role?: 'user' | 'admin';
           updated_at?: string;
         };
