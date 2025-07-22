@@ -36,12 +36,24 @@ const AppContent: React.FC = () => {
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando...</p>
           <p className="text-sm text-gray-500 mt-2">Verificando autenticação...</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 text-blue-600 hover:text-blue-700 text-sm underline"
-          >
-            Recarregar página
-          </button>
+          <div className="mt-4 space-y-2">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="block mx-auto text-blue-600 hover:text-blue-700 text-sm underline"
+            >
+              Recarregar página
+            </button>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/';
+              }} 
+              className="block mx-auto text-red-600 hover:text-red-700 text-sm underline"
+            >
+              Limpar dados e reiniciar
+            </button>
+          </div>
         </div>
       </div>
     );

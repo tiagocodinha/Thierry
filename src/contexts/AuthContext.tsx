@@ -23,6 +23,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
 
     // Verificar sessão atual
     const getSession = async () => {
@@ -53,6 +54,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
+    // Timeout de segurança - se demorar mais de 10 segundos, para o loading
+    timeoutId = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Timeout de carregamento - forçando fim do loading');
+        setLoading(false);
+        setUser(null);
+      }
+    }, 10000);
+
     getSession();
 
     // Escutar mudanças de autenticação
@@ -61,6 +71,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Auth state change:', event, !!session);
         
         if (!mounted) return;
+        
+        // Limpar timeout quando há mudança de estado
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         
         try {
           if (session?.user) {
@@ -73,12 +88,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (error) {
           console.error('Erro no auth state change:', error);
           setUser(null);
+        } finally {
+          setLoading(false);
         }
       }
     );
 
     return () => {
       mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       subscription.unsubscribe();
     };
   }, []);
@@ -120,26 +140,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (createError) {
           console.error('Erro ao criar perfil:', createError);
+          // Mesmo com erro na criação, continuar com dados básicos
+          const userData: User = {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            name: newProfile.name,
+            role: 'user',
+            created_at: supabaseUser.created_at,
+          };
+          console.log('Usando dados básicos devido a erro:', userData);
+          setUser(userData);
+          return;
         } else {
           console.log('Perfil criado com sucesso:', createdProfile);
-        }
-        
-        // Usar o perfil criado ou os dados básicos
-        const finalProfile = createdProfile || newProfile;
-        
-        const userData: User = {
-          id: supabaseUser.id,
-          email: supabaseUser.email || '',
-          name: finalProfile.name,
-          phone: finalProfile.phone,
-          role: finalProfile.role,
+          const userData: User = {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            name: createdProfile.name,
+            phone: createdProfile.phone,
+            role: createdProfile.role,
+            created_at: createdProfile.created_at,
+          };
+          console.log('Dados do utilizador criado:', userData);
+          setUser(userData);
+          return;
         }
       }
+      
       // Sempre criar um objeto de usuário, mesmo se não houver perfil
       const userData: User = {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         name: profile?.name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
+        phone: profile?.phone,
         role: profile?.role || 'user',
         created_at: profile?.created_at || supabaseUser.created_at,
       };
