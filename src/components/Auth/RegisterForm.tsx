@@ -74,7 +74,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setError('Erro ao fazer registo com Google');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Erro ao fazer registo com Google');
+      }
     }
   };
 

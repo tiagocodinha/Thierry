@@ -106,11 +106,11 @@ const ResetPasswordPage: React.FC = () => {
         setError(error.message);
       } else {
         console.log('Password atualizada com sucesso');
-        setSuccess(true);
-        // Redirecionar para login após 3 segundos
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 3000);
+        // Fazer logout para limpar a sessão de recovery
+        await supabase.auth.signOut();
+        
+        // Redirecionar imediatamente para a página de login
+        window.location.href = '/';
       }
     } catch (err) {
       console.error('Erro geral:', err);

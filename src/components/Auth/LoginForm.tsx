@@ -35,7 +35,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSwitchToRes
     try {
       await signInWithGoogle();
     } catch (err) {
-      setError('Erro ao fazer login com Google');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Erro ao fazer login com Google');
+      }
     }
   };
 
