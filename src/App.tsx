@@ -15,39 +15,15 @@ const AppContent: React.FC = () => {
   const [isResetPassword, setIsResetPassword] = useState(false);
 
   useEffect(() => {
-    // Verificar se é uma página de reset de password
-    const checkForRecovery = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const type = urlParams.get('type');
-      const token = urlParams.get('token');
-      
-      if (type === 'recovery' || token) {
-        setIsResetPassword(true);
-      }
-    };
-    
-    checkForRecovery();
-    
-    // Também verificar quando a URL muda
-    const handlePopState = () => {
-      checkForRecovery();
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  // Verificar também quando o componente monta
-  useEffect(() => {
+    // Verificar se é uma página de reset de password baseado na URL
+    const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
-    const type = urlParams.get('type');
-    const token = urlParams.get('token');
+    const hasRecoveryParams = urlParams.get('type') === 'recovery' || urlParams.get('token');
     
-    if (type === 'recovery' || token) {
+    if (path === '/reset-password' || hasRecoveryParams) {
       setIsResetPassword(true);
+    } else {
+      setIsResetPassword(false);
     }
   }, []);
 

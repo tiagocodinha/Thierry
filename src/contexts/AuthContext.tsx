@@ -189,8 +189,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const resetPassword = async (email: string) => {
+    // Determinar a URL base dependendo do ambiente
+    const baseUrl = import.meta.env.PROD 
+      ? window.location.origin 
+      : window.location.origin;
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/?type=recovery`,
+      redirectTo: `${baseUrl}/reset-password`,
     });
     if (error) {
       throw new Error(error.message);
