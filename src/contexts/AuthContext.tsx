@@ -122,13 +122,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, phone?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name: name,
+          phone: phone,
         },
       },
     });
@@ -137,8 +138,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error(error.message);
     }
 
-    // O perfil será criado automaticamente pelo trigger
-    // Não precisamos fazer nada aqui
+    // Se o registo foi bem-sucedido e temos um utilizador, criar/atualizar o perfil
+    if (data.user && phone) {
+      try {
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            name: name,
+            phone: phone,
+          });
+      } catch (profileError) {
+        console.error('Erro ao atualizar perfil com telefone:', profileError);
+      }
+    }
   };
 
   const signInWithGoogle = async () => {

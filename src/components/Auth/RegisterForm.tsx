@@ -1,15 +1,36 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Phone } from 'lucide-react';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
 }
 
+// Lista de países com códigos telefónicos (Portugal em primeiro)
+const COUNTRY_CODES = [
+  { code: '+351', country: 'Portugal', flag: '🇵🇹' },
+  { code: '+1', country: 'Estados Unidos', flag: '🇺🇸' },
+  { code: '+44', country: 'Reino Unido', flag: '🇬🇧' },
+  { code: '+33', country: 'França', flag: '🇫🇷' },
+  { code: '+49', country: 'Alemanha', flag: '🇩🇪' },
+  { code: '+34', country: 'Espanha', flag: '🇪🇸' },
+  { code: '+39', country: 'Itália', flag: '🇮🇹' },
+  { code: '+31', country: 'Holanda', flag: '🇳🇱' },
+  { code: '+32', country: 'Bélgica', flag: '🇧🇪' },
+  { code: '+41', country: 'Suíça', flag: '🇨🇭' },
+  { code: '+43', country: 'Áustria', flag: '🇦🇹' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '+86', country: 'China', flag: '🇨🇳' },
+  { code: '+81', country: 'Japão', flag: '🇯🇵' },
+  { code: '+91', country: 'Índia', flag: '🇮🇳' },
+];
+
 const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
   const { signUp, signInWithGoogle, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [countryCode, setCountryCode] = useState('+351');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,7 +58,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     }
 
     try {
-      await signUp(email, password, name);
+      const fullPhone = phoneNumber ? `${countryCode}${phoneNumber}` : '';
+      await signUp(email, password, name, fullPhone);
     } catch (err) {
       setError('Erro ao criar conta. Tente novamente.');
     }
@@ -117,6 +139,41 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
               placeholder="seu@email.com"
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+            Contacto telefónico (opcional)
+          </label>
+          <div className="flex">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="w-32 px-3 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
+            >
+              {COUNTRY_CODES.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.code}
+                </option>
+              ))}
+            </select>
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Phone className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="phone"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors border-l-0"
+                placeholder="912345678"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Exemplo: {countryCode}912345678
+          </p>
         </div>
 
         <div>
