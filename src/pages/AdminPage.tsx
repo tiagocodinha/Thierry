@@ -102,24 +102,42 @@ const AdminPage: React.FC = () => {
 
   const handleFileUpload = async (file: File): Promise<string | null> => {
     try {
+      console.log('🎬 Iniciando upload de vídeo:', file.name, 'Tamanho:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+      
+      // Verificar tamanho do ficheiro (máx 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        alert('O ficheiro é muito grande. Máximo permitido: 50MB');
+        return null;
+      }
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `videos/${fileName}`;
 
+      console.log('📁 Caminho do ficheiro:', filePath);
+      
       const { error: uploadError } = await supabase.storage
         .from('videos')
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error('Erro ao fazer upload:', uploadError);
-        alert(`Erro ao fazer upload: ${uploadError.message}`);
+        console.error('❌ Erro ao fazer upload:', uploadError);
+        
+        // Verificar se é erro de bucket não existe
+        if (uploadError.message.includes('Bucket not found')) {
+          alert('Erro: Bucket de vídeos não configurado no Supabase. Contacte o administrador.');
+        } else if (uploadError.message.includes('not allowed')) {
+          alert('Erro: Tipo de ficheiro não permitido. Use MP4, AVI, MOV ou WebM.');
+        } else {
+          alert(`Erro ao fazer upload: ${uploadError.message}`);
+        }
         return null;
       }
 
-      console.log('Upload bem-sucedido:', filePath);
+      console.log('✅ Upload de vídeo bem-sucedido:', filePath);
       return filePath;
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      console.error('💥 Erro inesperado no upload:', error);
       alert('Erro inesperado ao fazer upload');
       return null;
     }
@@ -127,17 +145,35 @@ const AdminPage: React.FC = () => {
 
   const handleThumbnailUpload = async (file: File): Promise<string | null> => {
     try {
+      console.log('🖼️ Iniciando upload de thumbnail:', file.name, 'Tamanho:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+      
+      // Verificar tamanho do ficheiro (máx 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A thumbnail é muito grande. Máximo permitido: 5MB');
+        return null;
+      }
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `thumbnails/${fileName}`;
 
+      console.log('📁 Caminho da thumbnail:', filePath);
+      
       const { error: uploadError } = await supabase.storage
         .from('thumbnails')
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error('Erro ao fazer upload da thumbnail:', uploadError);
-        alert(`Erro ao fazer upload da thumbnail: ${uploadError.message}`);
+        console.error('❌ Erro ao fazer upload da thumbnail:', uploadError);
+        
+        // Verificar se é erro de bucket não existe
+        if (uploadError.message.includes('Bucket not found')) {
+          alert('Erro: Bucket de thumbnails não configurado no Supabase. Contacte o administrador.');
+        } else if (uploadError.message.includes('not allowed')) {
+          alert('Erro: Tipo de ficheiro não permitido. Use JPG, PNG, WebP ou GIF.');
+        } else {
+          alert(`Erro ao fazer upload da thumbnail: ${uploadError.message}`);
+        }
         return null;
       }
 
@@ -146,9 +182,10 @@ const AdminPage: React.FC = () => {
         .from('thumbnails')
         .getPublicUrl(filePath);
 
+      console.log('✅ Upload de thumbnail bem-sucedido:', publicData.publicUrl);
       return publicData.publicUrl;
     } catch (error) {
-      console.error('Erro ao fazer upload da thumbnail:', error);
+      console.error('💥 Erro inesperado no upload da thumbnail:', error);
       alert('Erro inesperado ao fazer upload da thumbnail');
       return null;
     }
@@ -231,28 +268,41 @@ const AdminPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       
+      console.log('💾 Iniciando salvamento do capítulo...');
+      
       let finalFormData = { ...formData };
       
       // Upload thumbnail se selecionada
       if (selectedThumbnail) {
+        console.log('🖼️ Fazendo upload da thumbnail...');
         setUploadingThumbnail(true);
         const thumbnailUrl = await handleThumbnailUpload(selectedThumbnail);
         if (thumbnailUrl) {
           finalFormData.thumbnail_url = thumbnailUrl;
+        } else {
+          console.error('❌ Falha no upload da thumbnail');
+          setUploadingThumbnail(false);
+          return;
         }
         setUploadingThumbnail(false);
       }
       
       // Upload vídeo se selecionado
       if (selectedFile) {
+        console.log('🎬 Fazendo upload do vídeo...');
         setUploading(true);
         const filePath = await handleFileUpload(selectedFile);
         if (filePath) {
           finalFormData.video_file_path = filePath;
+        } else {
+          console.error('❌ Falha no upload do vídeo');
+          setUploading(false);
+          return;
         }
         setUploading(false);
       }
       
+      console.log('✅ Uploads concluídos, salvando capítulo...');
       onSave(finalFormData as Chapter);
     };
 
@@ -409,9 +459,13 @@ const AdminPage: React.FC = () => {
                   disabled={uploading || uploadingThumbnail}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
+                  {(uploading || uploadingThumbnail) ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
                   <span>
-                    {uploading || uploadingThumbnail ? 'A fazer upload...' : 'Guardar'}
+                    {uploading ? 'Upload vídeo...' : uploadingThumbnail ? 'Upload thumbnail...' : 'Guardar'}
                   </span>
                 </button>
               </div>
