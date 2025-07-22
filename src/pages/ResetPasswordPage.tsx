@@ -17,14 +17,19 @@ const ResetPasswordPage: React.FC = () => {
     // Verificar se há parâmetros de recovery na URL ou sessão válida
     const checkSession = async () => {
       try {
+        console.log('Verificando sessão de recovery...');
+        
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         const type = urlParams.get('type');
         const accessToken = urlParams.get('access_token');
         const refreshToken = urlParams.get('refresh_token');
         
+        console.log('Parâmetros da URL:', { token, type, accessToken: !!accessToken, refreshToken: !!refreshToken });
+        
         // Se temos tokens de acesso, definir a sessão
         if (accessToken && refreshToken) {
+          console.log('Definindo sessão com tokens...');
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -34,11 +39,13 @@ const ResetPasswordPage: React.FC = () => {
             console.error('Erro ao definir sessão:', error);
             setError('Link de recuperação inválido ou expirado. Tente solicitar um novo.');
           } else {
+            console.log('Sessão definida com sucesso');
             setValidSession(true);
           }
         }
         // Se temos token hash, verificar OTP
         else if (type === 'recovery' && token) {
+          console.log('Verificando token de recovery...');
           const { error } = await supabase.auth.verifyOtp({
             token_hash: token,
             type: 'recovery'
@@ -48,11 +55,14 @@ const ResetPasswordPage: React.FC = () => {
             console.error('Erro ao verificar token:', error);
             setError('Link de recuperação inválido ou expirado. Tente solicitar um novo.');
           } else {
+            console.log('Token verificado com sucesso');
             setValidSession(true);
           }
         } else {
           // Verificar se já há uma sessão ativa
+          console.log('Verificando sessão existente...');
           const { data: { session } } = await supabase.auth.getSession();
+          console.log('Sessão atual:', !!session);
           if (session) {
             setValidSession(true);
           } else {
@@ -85,13 +95,17 @@ const ResetPasswordPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Tentando atualizar password...');
+      
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
+        console.error('Erro do Supabase:', error);
         setError(error.message);
       } else {
+        console.log('Password atualizada com sucesso');
         setSuccess(true);
         // Redirecionar para login após 3 segundos
         setTimeout(() => {
@@ -99,6 +113,7 @@ const ResetPasswordPage: React.FC = () => {
         }, 3000);
       }
     } catch (err) {
+      console.error('Erro geral:', err);
       setError('Erro ao atualizar password');
     } finally {
       setLoading(false);
