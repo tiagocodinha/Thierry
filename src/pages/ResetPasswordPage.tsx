@@ -117,15 +117,11 @@ const ResetPasswordPage: React.FC = () => {
       if (error) {
         console.error('❌ Erro do Supabase:', error);
         setError(`Erro ao atualizar password: ${error.message}`);
-        setLoading(false);
       } else {
         console.log('✅ Password atualizada com sucesso!');
-        
-        // Mostrar sucesso imediatamente
-        setLoading(false);
         setSuccess(true);
         
-        // Aguardar 3 segundos e redirecionar
+        // Aguardar 2 segundos e redirecionar
         setTimeout(async () => {
           console.log('🔄 Fazendo logout e redirecionando...');
           try {
@@ -136,11 +132,12 @@ const ResetPasswordPage: React.FC = () => {
           
           // Forçar redirecionamento
           window.location.href = '/';
-        }, 3000);
+        }, 2000);
       }
     } catch (err) {
       console.error('💥 Erro geral:', err);
       setError('Erro inesperado ao atualizar password');
+    } finally {
       setLoading(false);
     }
   };
@@ -206,7 +203,7 @@ const ResetPasswordPage: React.FC = () => {
               A sua password foi atualizada com sucesso.
             </p>
             <p className="text-sm text-gray-500 mb-4">
-              Será redirecionado para a página de login em 3 segundos...
+              Será redirecionado para a página de login em 2 segundos...
             </p>
             <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <button

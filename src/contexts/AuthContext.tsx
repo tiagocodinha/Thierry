@@ -12,7 +12,6 @@ export const useAuth = () => {
   }
   return context;
 };
-
 interface AuthProviderProps {
   children: React.ReactNode;
 }
@@ -247,26 +246,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        }
-      },
-    });
-
-    if (error) {
-      console.error('Erro no signInWithOAuth:', error);
-      throw new Error(error.message);
-    }
-    
-    console.log('OAuth iniciado:', data);
-  };
-
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -302,7 +281,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     signIn,
     signUp,
-    signInWithGoogle,
     signOut,
     resetPassword,
   };

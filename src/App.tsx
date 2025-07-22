@@ -8,7 +8,6 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import AuthCallbackPage from './pages/AuthCallbackPage';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -20,9 +19,8 @@ const AppContent: React.FC = () => {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
     const hasRecoveryParams = urlParams.get('type') === 'recovery' || urlParams.get('token');
-    const isAuthCallback = path === '/auth/callback';
     
-    if (path === '/reset-password' || hasRecoveryParams || isAuthCallback) {
+    if (path === '/reset-password' || hasRecoveryParams) {
       setIsResetPassword(true);
     } else {
       setIsResetPassword(false);
@@ -61,10 +59,6 @@ const AppContent: React.FC = () => {
 
   // Se for página de reset de password, mostrar essa página
   if (isResetPassword) {
-    const path = window.location.pathname;
-    if (path === '/auth/callback') {
-      return <AuthCallbackPage />;
-    }
     return <ResetPasswordPage />;
   }
 
