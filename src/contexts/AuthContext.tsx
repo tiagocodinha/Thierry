@@ -27,13 +27,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Verificar sessão atual
     const getSession = async () => {
       try {
+        console.log('Verificando sessão atual...');
         const { data: { session } } = await supabase.auth.getSession();
+        
+        console.log('Sessão encontrada:', !!session, session?.user?.email);
         
         if (!mounted) return;
         
         if (session?.user) {
           await loadUserProfile(session.user);
         } else {
+          console.log('Sem sessão ativa');
           setUser(null);
         }
       } catch (error) {
@@ -43,6 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } finally {
         if (mounted) {
+          console.log('Finalizando carregamento...');
           setLoading(false);
         }
       }
@@ -53,12 +58,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, !!session);
+        
         if (!mounted) return;
         
         try {
           if (session?.user) {
+            console.log('Utilizador logado, carregando perfil...');
             await loadUserProfile(session.user);
           } else {
+            console.log('Utilizador deslogado');
             setUser(null);
           }
         } catch (error) {
@@ -76,12 +85,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
+      console.log('Carregando perfil para utilizador:', supabaseUser.id, supabaseUser.email);
+      
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .maybeSingle();
 
+      console.log('Perfil encontrado:', profile);
+      console.log('Erro na consulta:', error);
+
+      // Se não existe perfil, criar um
+      if (!profile && !error) {
+        console.log('Perfil não existe, criando novo...');
+        
+        const newProfile = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          name: supabaseUser.user_metadata?.full_name || 
+                supabaseUser.user_metadata?.name || 
+                supabaseUser.email?.split('@')[0] || 
+                'Utilizador',
+          role: 'user' as const,
+        };
+        
+        console.log('Dados do novo perfil:', newProfile);
+        
+        const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Erro ao criar perfil:', createError);
+        } else {
+          console.log('Perfil criado com sucesso:', createdProfile);
+        }
+        
+        // Usar o perfil criado ou os dados básicos
+        const finalProfile = createdProfile || newProfile;
+        
+        const userData: User = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          name: finalProfile.name,
+          phone: finalProfile.phone,
+          role: finalProfile.role,
+        }
+      }
       // Sempre criar um objeto de usuário, mesmo se não houver perfil
       const userData: User = {
         id: supabaseUser.id,
@@ -91,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         created_at: profile?.created_at || supabaseUser.created_at,
       };
 
+      console.log('Dados finais do utilizador:', userData);
       setUser(userData);
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -104,6 +158,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         created_at: supabaseUser.created_at,
       };
       
+      console.log('Usando utilizador fallback:', fallbackUser);
       setUser(fallbackUser);
     }
   };
