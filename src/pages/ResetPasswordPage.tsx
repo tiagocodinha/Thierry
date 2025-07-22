@@ -16,11 +16,37 @@ const ResetPasswordPage: React.FC = () => {
   useEffect(() => {
     // Verificar se há uma sessão válida para reset de password
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setValidSession(true);
-      } else {
-        setError('Link de recuperação inválido ou expirado');
+      try {
+        // Verificar se há parâmetros de recovery na URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const type = urlParams.get('type');
+        
+        if (type === 'recovery' && token) {
+          // Tentar verificar o token
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery'
+          });
+          
+          if (error) {
+            console.error('Erro ao verificar token:', error);
+            setError('Link de recuperação inválido ou expirado');
+          } else {
+            setValidSession(true);
+          }
+        } else {
+          // Verificar sessão normal
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setValidSession(true);
+          } else {
+            setError('Link de recuperação inválido ou expirado');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+        setError('Erro ao verificar link de recuperação');
       }
     };
 
