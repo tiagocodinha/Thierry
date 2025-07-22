@@ -19,6 +19,7 @@ const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'chapters' | 'users'>('chapters');
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [showChapterForm, setShowChapterForm] = useState(false);
+  const [deletingChapter, setDeletingChapter] = useState<string | null>(null);
 
   useEffect(() => {
     const loadChapters = async () => {
@@ -67,6 +68,90 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const handleThumbnailUpload = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `thumbnails/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('thumbnails')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Erro ao fazer upload da thumbnail:', uploadError);
+        alert(`Erro ao fazer upload da thumbnail: ${uploadError.message}`);
+        return null;
+      }
+
+      // Obter URL pública da thumbnail
+      const { data: publicData } = supabase.storage
+        .from('thumbnails')
+        .getPublicUrl(filePath);
+
+      return publicData.publicUrl;
+    } catch (error) {
+      console.error('Erro ao fazer upload da thumbnail:', error);
+      alert('Erro inesperado ao fazer upload da thumbnail');
+      return null;
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    if (!confirm('Tem certeza que deseja apagar este capítulo? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    setDeletingChapter(chapterId);
+
+    try {
+      const chapter = chapters.find(c => c.id === chapterId);
+      
+      // Apagar vídeo do storage se existir
+      if (chapter?.video_file_path) {
+        const { error: videoDeleteError } = await supabase.storage
+          .from('videos')
+          .remove([chapter.video_file_path]);
+        
+        if (videoDeleteError) {
+          console.error('Erro ao apagar vídeo:', videoDeleteError);
+        }
+      }
+
+      // Apagar thumbnail do storage se for do nosso storage
+      if (chapter?.thumbnail_url && chapter.thumbnail_url.includes('thumbnails/')) {
+        const thumbnailPath = chapter.thumbnail_url.split('/').slice(-2).join('/');
+        const { error: thumbnailDeleteError } = await supabase.storage
+          .from('thumbnails')
+          .remove([thumbnailPath]);
+        
+        if (thumbnailDeleteError) {
+          console.error('Erro ao apagar thumbnail:', thumbnailDeleteError);
+        }
+      }
+
+      // Apagar capítulo da base de dados
+      const { error } = await supabase
+        .from('chapters')
+        .delete()
+        .eq('id', chapterId);
+
+      if (error) {
+        console.error('Erro ao apagar capítulo:', error);
+        alert('Erro ao apagar capítulo');
+        return;
+      }
+
+      setChapters(prev => prev.filter(c => c.id !== chapterId));
+      alert('Capítulo apagado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao apagar capítulo:', error);
+      alert('Erro inesperado ao apagar capítulo');
+    } finally {
+      setDeletingChapter(null);
+    }
+  };
+
   const ChapterForm: React.FC<{ chapter?: Chapter; onSave: (chapter: Chapter) => void; onCancel: () => void }> = ({ 
     chapter, 
     onSave, 
@@ -83,12 +168,25 @@ const AdminPage: React.FC = () => {
     });
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
+    const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       
       let finalFormData = { ...formData };
       
+      // Upload thumbnail se selecionada
+      if (selectedThumbnail) {
+        setUploadingThumbnail(true);
+        const thumbnailUrl = await handleThumbnailUpload(selectedThumbnail);
+        if (thumbnailUrl) {
+          finalFormData.thumbnail_url = thumbnailUrl;
+        }
+        setUploadingThumbnail(false);
+      }
+      
+      // Upload vídeo se selecionado
       if (selectedFile) {
         setUploading(true);
         const filePath = await handleFileUpload(selectedFile);
@@ -104,11 +202,14 @@ const AdminPage: React.FC = () => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
-        if (file.size > 50 * 1024 * 1024) { // 50MB limit
-          alert('O ficheiro deve ter no máximo 50MB');
-          return;
-        }
         setSelectedFile(file);
+      }
+    };
+
+    const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setSelectedThumbnail(file);
       }
     };
 
@@ -121,6 +222,7 @@ const AdminPage: React.FC = () => {
                 {chapter ? 'Editar Capítulo' : 'Novo Capítulo'}
               </h2>
               <button
+                type="button"
                 onClick={onCancel}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -175,15 +277,24 @@ const AdminPage: React.FC = () => {
               <div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL da Thumbnail
+                    Thumbnail (máx. 5MB)
                   </label>
                   <input
-                    type="url"
-                    value={formData.thumbnail_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://..."
                   />
+                  {formData.thumbnail_url && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600 mb-2">Thumbnail atual:</p>
+                      <img 
+                        src={formData.thumbnail_url} 
+                        alt="Thumbnail atual" 
+                        className="w-32 h-20 object-cover rounded border"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -238,11 +349,13 @@ const AdminPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading}
+                  disabled={uploading || uploadingThumbnail}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{uploading ? 'A fazer upload...' : 'Guardar'}</span>
+                  <span>
+                    {uploading || uploadingThumbnail ? 'A fazer upload...' : 'Guardar'}
+                  </span>
                 </button>
               </div>
             </form>
@@ -383,12 +496,21 @@ const AdminPage: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setEditingChapter(chapter)}
+                          disabled={deletingChapter === chapter.id}
                           className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                        <button 
+                          onClick={() => handleDeleteChapter(chapter.id)}
+                          disabled={deletingChapter === chapter.id}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {deletingChapter === chapter.id ? (
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </div>
